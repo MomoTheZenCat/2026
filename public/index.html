@@ -60,6 +60,31 @@
   // sometimes fails and leaves "undefined" labels
   window.EJS_language = "en-US";
   window.EJS_disableAutoLang = true;
+
+  // iPhone / iPad Safari: emulating the DS in WebAssembly keeps the CPU busy,
+  // and EmulatorJS's fixed 64 ms audio buffer runs dry now and then, which
+  // sounds like crackling. Give iOS a bigger buffer and a little headroom.
+  // (Mac browsers and native emulators are fine and stay untouched.)
+  const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                 (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (IS_IOS) {
+    window.EJS_volume = 0.4;   // EmulatorJS default is 0.5
+    // patch as soon as EmulatorJS's code has loaded (before the player taps
+    // start, which is when the RetroArch config gets written)
+    let patched = false;
+    const patchLatency = () => {
+      if (patched || typeof EJS_GameManager === "undefined") return patched;
+      const gmProto = EJS_GameManager.prototype;
+      const cfg = gmProto.getRetroArchCfg;
+      gmProto.getRetroArchCfg = function () {
+        return cfg.call(this).replace(/audio_latency = \d+/, "audio_latency = 160");
+      };
+      patched = true;
+      return true;
+    };
+    const iv = setInterval(() => { if (patchLatency()) clearInterval(iv); }, 50);
+    window.EJS_ready = patchLatency;
+  }
   // no auto-start: iOS (especially home-screen apps) needs a tap before the
   // emulator can start its audio
   // fixed keyboard layout (matches the legend below the game)
