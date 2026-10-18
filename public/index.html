@@ -64,8 +64,8 @@
   // iPhone / iPad Safari: emulating the DS in WebAssembly keeps the CPU busy;
   // when it falls behind, EmulatorJS's short 64 ms audio buffer runs dry and
   // the gaps sound like crackling (it isn't clipping: lower volume doesn't help).
-  // On iOS we use a bigger buffer and RetroArch's cheaper "cc" resampler
-  // (the default "sinc" one costs a lot of CPU). Everything can be overridden
+  // On iOS we use a bigger buffer and RetroArch's cheapest "nearest"
+  // resampler (the default "sinc" one costs a lot of CPU) - tested best. Everything can be overridden
   // in the URL for testing, e.g.  ?latency=320&resampler=nearest&core=desmume
   //   latency:   audio buffer in ms (EmulatorJS default 64)
   //   resampler: sinc | cc | nearest
@@ -73,8 +73,8 @@
   const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const qs = new URLSearchParams(location.search);
-  const AUDIO_LATENCY = qs.get("latency") || (IS_IOS ? "256" : null);
-  const AUDIO_RESAMPLER = qs.get("resampler") || (IS_IOS ? "cc" : null);
+  const AUDIO_LATENCY = qs.get("latency") || (IS_IOS ? "384" : null);
+  const AUDIO_RESAMPLER = qs.get("resampler") || (IS_IOS ? "nearest" : null);
   const CORE = qs.get("core");
   if (CORE)
     window.EJS_core = CORE;
