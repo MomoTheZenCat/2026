@@ -64,8 +64,8 @@
   // iPhone / iPad Safari: emulating the DS in WebAssembly keeps the CPU busy;
   // when it falls behind, EmulatorJS's short 64 ms audio buffer runs dry and
   // the gaps sound like crackling (it isn't clipping: lower volume doesn't help).
-  // On iOS we use a bigger buffer and RetroArch's cheapest "nearest"
-  // resampler (the default "sinc" one costs a lot of CPU) - tested best. Everything can be overridden
+  // On phones (iOS + Android) we use a bigger buffer and RetroArch's cheapest
+  // "nearest" resampler (the default "sinc" one costs a lot of CPU) - tested best. Everything can be overridden
   // in the URL for testing, e.g.  ?latency=320&resampler=nearest&core=desmume
   //   latency:   audio buffer in ms (EmulatorJS default 64)
   //   resampler: sinc | cc | nearest
@@ -73,8 +73,10 @@
   const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const qs = new URLSearchParams(location.search);
-  const AUDIO_LATENCY = qs.get("latency") || (IS_IOS ? "384" : null);
-  const AUDIO_RESAMPLER = qs.get("resampler") || (IS_IOS ? "nearest" : null);
+  const IS_ANDROID = /Android/i.test(navigator.userAgent);
+  const IS_MOBILE = IS_IOS || IS_ANDROID;
+  const AUDIO_LATENCY = qs.get("latency") || (IS_MOBILE ? "512" : null);
+  const AUDIO_RESAMPLER = qs.get("resampler") || (IS_MOBILE ? "nearest" : null);
   const CORE = qs.get("core");
   if (CORE)
     window.EJS_core = CORE;
@@ -112,11 +114,12 @@
     1: {}, 2: {}, 3: {},
   };
 
-  // On-screen gamepad for phones: DS face buttons, D-pad, SELECT/START and a
-  // Cheat button (skips to the next stage) above them. No L/R: the game doesn't need them.
+  // On-screen gamepad for phones: DS face buttons, D-pad, and Cheat + Start
+  // side by side in the middle (Cheat skips to the next stage). No L/R/Select:
+  // the game doesn't need them.
   // Cheat sends RetroPad L3 (14), which the game never reads; we catch it below.
-  // The center group is 124px wide and buttons 52px, so x = 36 is centred;
-  // Select/Start sit 6px either side of the middle.
+  // The center group is 124px wide and buttons 52px: Cheat/Start sit 6px
+  // either side of the middle.
   const SKIP_INPUT = 14;
   window.EJS_VirtualGamepadSettings = [
     { type: "button", text: "X", id: "x", location: "right", left: 40, top: 0, bold: true, input_value: 9 },
@@ -124,8 +127,9 @@
     { type: "button", text: "A", id: "a", location: "right", left: 81, top: 40, bold: true, input_value: 8 },
     { type: "button", text: "B", id: "b", location: "right", left: 40, top: 80, bold: true, input_value: 0 },
     { type: "dpad", location: "left", left: "50%", top: "50%", joystickInput: false, inputValues: [4, 5, 6, 7] },
-    { type: "button", text: "Cheat", id: "cheat", location: "center", left: 36, top: -80, fontSize: 15, block: true, input_value: SKIP_INPUT },
-    { type: "button", text: "Select", id: "select", location: "center", left: 4, top: -40, fontSize: 15, block: true, input_value: 2 },
+    // (no Select button: the game's two SELECT uses - ranking on the title,
+    //  quit on the pause screen - are tappable on the touch screen)
+    { type: "button", text: "Cheat", id: "cheat", location: "center", left: 4, top: -40, fontSize: 15, block: true, input_value: SKIP_INPUT },
     { type: "button", text: "Start", id: "start", location: "center", left: 68, top: -40, fontSize: 15, block: true, input_value: 3 },
   ];
   window.EJS_onGameStart = () => {
@@ -139,7 +143,44 @@
       send(player, index, value);
     };
     gm.sendRaw = send;
+    applyOrientation();
   };
+
+  // Phones held sideways: show the two DS screens side by side and move the
+  // Cheat / Start buttons out of the middle into a column at the top
+  // right (under the menu button). Upright, everything stays as it was.
+  const LANDSCAPE = matchMedia("(orientation: landscape)");
+  const TOUCH = matchMedia("(pointer: coarse)");
+  function applyOrientation() {
+    const land = LANDSCAPE.matches && TOUCH.matches;
+    const gm = window.EJS_emulator && window.EJS_emulator.gameManager;
+    if (gm && (!CORE || CORE === "melonds")) {
+      try {
+        gm.setVariable("melonds_screen_layout", land ? "Left/Right" : "Top/Bottom");
+      } catch (e) {
+        console.warn("screen layout", e);
+      }
+    }
+    ["cheat", "start"].forEach((id, k) => {
+      const b = document.querySelector("#game .b_" + id);
+      if (!b) return;
+      if (!b._home) {               // remember where EmulatorJS put it
+        b._home = b.parentNode;
+        b._style = b.getAttribute("style") || "";
+      }
+      if (land) {
+        document.getElementById("game").appendChild(b);
+        b.setAttribute("style", b._style.replace(/(left|right|top|bottom):[^;]*;/g, "") +
+          "position:fixed;left:auto;width:64px;z-index:20;" +
+          "right:calc(env(safe-area-inset-right) + 10px);" +
+          "top:calc(env(safe-area-inset-top) + " + (52 + k * 40) + "px);");
+      } else if (b.parentNode !== b._home) {
+        b._home.appendChild(b);
+        b.setAttribute("style", b._style);
+      }
+    });
+  }
+  LANDSCAPE.addEventListener("change", () => setTimeout(applyOrientation, 200));
 
   // Secret code ↑↑↓↓←→←→BA: in-game it jumps one step ahead (next stage).
   // EmulatorJS RetroPad ids: B=0 UP=4 DOWN=5 LEFT=6 RIGHT=7 A=8
