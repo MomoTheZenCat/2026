@@ -7,7 +7,7 @@
 <title>Momo Dev Story</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="Momo">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -47,7 +47,12 @@
   window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
   window.EJS_color = "#f58c28";
   window.EJS_backgroundColor = "#2c1830";
-  window.EJS_startOnLoaded = true;
+  // English UI: auto-detecting the phone's language fetches a translation that
+  // sometimes fails and leaves "undefined" labels
+  window.EJS_language = "en-US";
+  window.EJS_disableAutoLang = true;
+  // no auto-start: iOS (especially home-screen apps) needs a tap before the
+  // emulator can start its audio
   // fixed keyboard layout (matches the legend below the game)
   window.EJS_defaultControls = {
     0: {
