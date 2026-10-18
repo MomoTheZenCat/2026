@@ -41,7 +41,7 @@
 </head>
 <body>
 <header>
-  <h1>🐱 Momo Dev Story <small id="ver">v11</small></h1>
+  <h1>🐱 Momo Dev Story <small id="ver">v0</small></h1>
   <button id="fs" title="Full screen">⛶</button>
   <button id="cheat" title="Secret code: ↑↑↓↓←→←→BA (shortcut: ` key)">↑↑↓↓←→←→BA</button>
 </header>
@@ -61,29 +61,44 @@
   window.EJS_language = "en-US";
   window.EJS_disableAutoLang = true;
 
-  // iPhone / iPad Safari: emulating the DS in WebAssembly keeps the CPU busy,
-  // and EmulatorJS's fixed 64 ms audio buffer runs dry now and then, which
-  // sounds like crackling. Give iOS a bigger buffer and a little headroom.
-  // (Mac browsers and native emulators are fine and stay untouched.)
+  // iPhone / iPad Safari: emulating the DS in WebAssembly keeps the CPU busy;
+  // when it falls behind, EmulatorJS's short 64 ms audio buffer runs dry and
+  // the gaps sound like crackling (it isn't clipping: lower volume doesn't help).
+  // On iOS we use a bigger buffer and RetroArch's cheaper "cc" resampler
+  // (the default "sinc" one costs a lot of CPU). Everything can be overridden
+  // in the URL for testing, e.g.  ?latency=320&resampler=nearest&core=desmume
+  //   latency:   audio buffer in ms (EmulatorJS default 64)
+  //   resampler: sinc | cc | nearest
+  //   core:      melonds (default) | desmume | desmume2015
   const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  if (IS_IOS) {
-    window.EJS_volume = 0.4;   // EmulatorJS default is 0.5
-    // patch as soon as EmulatorJS's code has loaded (before the player taps
-    // start, which is when the RetroArch config gets written)
+  const qs = new URLSearchParams(location.search);
+  const AUDIO_LATENCY = qs.get("latency") || (IS_IOS ? "256" : null);
+  const AUDIO_RESAMPLER = qs.get("resampler") || (IS_IOS ? "cc" : null);
+  const CORE = qs.get("core");
+  if (CORE)
+    window.EJS_core = CORE;
+  if (AUDIO_LATENCY || AUDIO_RESAMPLER) {
+    // patch EmulatorJS's RetroArch config as soon as its code has loaded
+    // (before the player taps start, which is when the config is written)
     let patched = false;
-    const patchLatency = () => {
+    const patchAudio = () => {
       if (patched || typeof EJS_GameManager === "undefined") return patched;
       const gmProto = EJS_GameManager.prototype;
       const cfg = gmProto.getRetroArchCfg;
       gmProto.getRetroArchCfg = function () {
-        return cfg.call(this).replace(/audio_latency = \d+/, "audio_latency = 160");
+        let c = cfg.call(this);
+        if (AUDIO_LATENCY)
+          c = c.replace(/audio_latency = \d+/, "audio_latency = " + parseInt(AUDIO_LATENCY, 10));
+        if (AUDIO_RESAMPLER)
+          c += 'audio_resampler = "' + AUDIO_RESAMPLER + '"\naudio_resampler_quality = "1"\n';
+        return c;
       };
       patched = true;
       return true;
     };
-    const iv = setInterval(() => { if (patchLatency()) clearInterval(iv); }, 50);
-    window.EJS_ready = patchLatency;
+    const iv = setInterval(() => { if (patchAudio()) clearInterval(iv); }, 50);
+    window.EJS_ready = patchAudio;
   }
   // no auto-start: iOS (especially home-screen apps) needs a tap before the
   // emulator can start its audio
