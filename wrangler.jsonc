@@ -1,0 +1,8 @@
+{
+  // Static site: the web page + the ROM, served by Workers static assets.
+  "name": "2026",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./public"
+  }
+}
