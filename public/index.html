@@ -14,8 +14,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
 <style>
-  html, body { margin: 0; height: 100%; height: 100dvh; overscroll-behavior: none; touch-action: manipulation; background: #2c1830; color: #fcefdc; font-family: system-ui, sans-serif; }
-  body { display: flex; flex-direction: column; }
+  html, body { margin: 0; height: 100%; overscroll-behavior: none; touch-action: manipulation; background: #2c1830; color: #fcefdc; font-family: system-ui, sans-serif; }
+  /* pinned to the real screen edges: iOS home-screen apps get 100dvh wrong,
+     which pushed the gamepad up */
+  body { display: flex; flex-direction: column; position: fixed; inset: 0; }
   header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; padding-top: max(6px, env(safe-area-inset-top)); }
   header h1 { font-size: 16px; margin: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #cheat { background: #f58c28; color: #3c241e; border: 0; border-radius: 8px; padding: 6px 10px; font-weight: 700; font-size: 13px; }
@@ -23,6 +25,7 @@
   #cheat:disabled { opacity: 0.5; }
   #fs { background: none; color: #fcefdc; border: 1px solid #fcefdc66; border-radius: 8px; padding: 4px 9px; font-size: 16px; }
   #game-wrap { flex: 1; min-height: 0; position: relative; }
+  @media (pointer: coarse) { #game-wrap { margin-bottom: env(safe-area-inset-bottom); } }  /* clear of the home bar */
   #game { width: 100%; height: 100%; }
   #keys { font-size: 12px; opacity: .75; text-align: center; padding: 4px 8px; padding-bottom: max(4px, env(safe-area-inset-bottom)); }
   @media (pointer: coarse) { #keys { display: none; } }  /* phones get the on-screen gamepad */
