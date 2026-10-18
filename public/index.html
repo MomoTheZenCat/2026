@@ -9,14 +9,19 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="Momo">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
-  html, body { margin: 0; height: 100%; background: #2c1830; color: #fcefdc; font-family: system-ui, sans-serif; }
+  html, body { margin: 0; height: 100%; height: 100dvh; overscroll-behavior: none; touch-action: manipulation; background: #2c1830; color: #fcefdc; font-family: system-ui, sans-serif; }
   body { display: flex; flex-direction: column; }
   header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; padding-top: max(6px, env(safe-area-inset-top)); }
   header h1 { font-size: 16px; margin: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #cheat { background: #f58c28; color: #3c241e; border: 0; border-radius: 8px; padding: 6px 10px; font-weight: 700; font-size: 13px; }
   #cheat:active { transform: scale(0.96); }
   #cheat:disabled { opacity: 0.5; }
+  #fs { background: none; color: #fcefdc; border: 1px solid #fcefdc66; border-radius: 8px; padding: 4px 9px; font-size: 16px; }
   #game-wrap { flex: 1; min-height: 0; position: relative; }
   #game { width: 100%; height: 100%; }
   #keys { font-size: 12px; opacity: .75; text-align: center; padding: 4px 8px; padding-bottom: max(4px, env(safe-area-inset-bottom)); }
@@ -28,6 +33,7 @@
 <body>
 <header>
   <h1>🐱 Momo Dev Story</h1>
+  <button id="fs" title="Full screen">⛶</button>
   <button id="cheat" title="Secret code: ↑↑↓↓←→←→BA (shortcut: ` key)">↑↑↓↓←→←→BA</button>
 </header>
 <div id="game-wrap"><div id="game"></div></div>
@@ -113,6 +119,28 @@
   }
 
   btn.addEventListener("click", secretCode);
+
+  // Full screen: browsers only allow it from a tap, so phones go full screen
+  // on the first touch; the ⛶ button toggles it. (iPhone: Add to Home Screen.)
+  const root = document.documentElement;
+  const isFull = () => document.fullscreenElement || document.webkitFullscreenElement;
+  function enterFull() {
+    const req = root.requestFullscreen || root.webkitRequestFullscreen;
+    if (!req || isFull()) return;
+    Promise.resolve(req.call(root, { navigationUI: "hide" }))
+      .then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock("portrait").catch(() => {}))
+      .catch(() => {});
+  }
+  document.getElementById("fs").addEventListener("click", () => {
+    if (isFull()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else enterFull();
+  });
+  if (matchMedia("(pointer: coarse)").matches)
+    window.addEventListener("pointerdown", function auto(e) {
+      if (e.target.id === "fs") return;   // the ⛶ button handles itself
+      window.removeEventListener("pointerdown", auto, true);
+      enterFull();
+    }, true);
   window.addEventListener("keydown", (e) => {
     if (e.code === "Backquote") {
       e.preventDefault();
